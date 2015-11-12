@@ -37,6 +37,17 @@ class BTrDB (server : String, port : Int) extends Serializable
 
   connect()
 
+  def close()
+  {
+    sock.close()
+  }
+/*
+  def getNext(stream : String, time : Long, backward : Bool)
+   : RawTuple =
+  {
+    //TODO
+  }
+  */
   def getStatistical (stream : String, resolution : Int, startTime : Long, endTime : Long, version : Long = 0)
    : (String, Long, Iterator[StatTuple]) = getStatisticalU(UUID(stream), resolution, startTime, endTime, version)
 
