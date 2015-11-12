@@ -426,9 +426,8 @@ class BTrDB (server : String, port : Int) extends Serializable
     //We chunk the values into chunks
     val chunkSize = 16384
     var gstatus = BTrDBCapnP.StatusCode.OK
-    while (values.hasNext)
+    values.grouped(16384).foreach (chunk =>
     {
-      var thisChunk = values.take(chunkSize).toArray
       //Write the outgoing request
       var msgEchoTag : Long = 0
       this.synchronized
@@ -441,13 +440,13 @@ class BTrDB (server : String, port : Int) extends Serializable
       req.setEchoTag(msgEchoTag)
       var qsv = req.initInsertValues()
       qsv.setUuid(stream.byteArray)
-      qsv.setSync(thisChunk.size < chunkSize)
-      var vals = qsv.initValues(thisChunk.size)
-      for (i <- 0 until thisChunk.size)
+      qsv.setSync(sync)
+      var vals = qsv.initValues(chunk.size)
+      for (i <- 0 until chunk.size; cv <- chunk)
       {
         var v = vals.get(i)
-        v.setTime(thisChunk(i).t)
-        v.setValue(thisChunk(i).v)
+        v.setTime(cv.t)
+        v.setValue(cv.v)
       }
       this.synchronized
       {
@@ -469,7 +468,7 @@ class BTrDB (server : String, port : Int) extends Serializable
       {
         gstatus = status
       }
-    }
+    })
     gstatus.toString
   }
 }
