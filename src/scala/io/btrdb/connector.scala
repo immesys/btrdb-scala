@@ -442,11 +442,11 @@ class BTrDB (server : String, port : Int) extends Serializable
       qsv.setUuid(stream.byteArray)
       qsv.setSync(sync)
       var vals = qsv.initValues(chunk.size)
-      for (i <- 0 until chunk.size; cv <- chunk)
+      for (i <- 0 until chunk.size)
       {
         var v = vals.get(i)
-        v.setTime(cv.t)
-        v.setValue(cv.v)
+        v.setTime(chunk(i).t)
+        v.setValue(chunk(i).v)
       }
       this.synchronized
       {
