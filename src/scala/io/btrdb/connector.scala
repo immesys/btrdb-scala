@@ -132,6 +132,91 @@ class BTrDB (server : String, port : Int) extends Serializable
     (status, qversion, it)
   }
 
+  def getWindow (stream : String, width : Long, startTime : Long, endTime : Long, depth : Int, version : Long = 0)
+   : (String, Long, Iterator[StatTuple]) = getWindowU(UUID(stream), width, startTime, endTime, depth, version)
+
+  def getWindowU (stream : UUID, width : Long, startTime : Long, endTime : Long, depth : Int, version : Long = 0)
+   : (String, Long, Iterator[StatTuple]) =
+  {
+
+    //Write the outgoing request
+    var msgEchoTag : Long = 0
+    this.synchronized
+    {
+      msgEchoTag = echotag
+      echotag += 1
+    }
+    var msgb = new org.capnproto.MessageBuilder()
+    var req = msgb.initRoot(BTrDBCapnP.Request.factory)
+    req.setEchoTag(msgEchoTag)
+    var qsv = req.initQueryWindowValues()
+    qsv.setUuid(stream.byteArray)
+    qsv.setVersion(version)
+    qsv.setDepth(depth.toByte)
+    qsv.setWidth(width)
+    qsv.setStartTime(startTime)
+    qsv.setEndTime(endTime)
+    this.synchronized
+    {
+      org.capnproto.Serialize.write(sock, msgb)
+    }
+    //Read the response. For now, we assume only one in-flight request
+    //So the response echotag should match our echotag
+    var qversion : Long = -1
+    var status : String = "<UNSET>"
+    var it = new Iterator[StatTuple]
+    {
+      var cursegment : BTrDBCapnP.Response.Reader = null
+      var curlist : org.capnproto.StructList.Reader[BTrDBCapnP.StatisticalRecord.Reader] = null
+      var index : Int = 0
+      var listmax : Int = 0
+      var more : Boolean = true
+
+      {
+        checkSegment()
+      }
+      def checkSegment() : Boolean =
+      {
+        if (index == listmax && !more)
+          return false
+        if (cursegment == null || index == listmax)
+        {
+          var msg : org.capnproto.MessageReader = null
+          this.synchronized
+          {
+            msg = org.capnproto.Serialize.read(sock)
+          }
+          cursegment = msg.getRoot(BTrDBCapnP.Response.factory)
+          status = cursegment.getStatusCode().toString()
+          if (cursegment.getEchoTag() != msgEchoTag)
+          {
+            throw new IllegalStateException("We do not support out of order segments")
+          }
+          more = !cursegment.getFinal()
+          var sr = cursegment.getStatisticalRecords()
+          qversion = sr.getVersion()
+          curlist = sr.getValues()
+          listmax = curlist.size()
+          index = 0
+        }
+        return true
+      }
+      override def next() =
+      {
+        if (!hasNext())
+          throw new NoSuchElementException()
+        val r = curlist.get(index)
+        index += 1
+        StatTuple(r.getTime(), r.getMin(), r.getMean(), r.getMax(), r.getCount())
+      }
+      override def hasNext() =
+      {
+        checkSegment()
+      }
+    }
+    (status, qversion, it)
+  }
+
   def getRaw(stream : String, startTime : Long, endTime : Long, version : Long = 0)
    : (String, Long, Iterator[RawTuple]) = getRawU(UUID(stream), startTime, endTime, version)
 
