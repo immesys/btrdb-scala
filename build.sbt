@@ -15,7 +15,7 @@ bintrayVcsUrl := Some("git@github.com:immesys/btrdb-scala.git")
 
 licenses += ("GPL-3.0", url("http://opensource.org/licenses/GPL-3.0"))
 
-libraryDependencies += "org.capnproto" % "runtime" % "0.1.0-SNAPSHOT"
+libraryDependencies += "org.capnproto" % "runtime" % "0.1.0"
 
 libraryDependencies += "io.jvm.uuid" %% "scala-uuid" % "0.2.1"
 
